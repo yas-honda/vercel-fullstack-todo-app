@@ -25,6 +25,9 @@ const App: React.FC = () => {
   // State for inline editing
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [editingText, setEditingText] = useState<string>('');
+
+  // State for exit animations
+  const [exitingTaskIds, setExitingTaskIds] = useState<number[]>([]);
   
   const getTasks = useCallback(async () => {
     setLoading(true);
@@ -72,9 +75,15 @@ const App: React.FC = () => {
 
   const handleDeleteTask = async (id: number) => {
     const originalTasks = [...tasks];
-    // Optimistic UI update
-    setTasks(tasks.filter(task => task.id !== id));
     setError(null);
+
+    // Start exit animation
+    setExitingTaskIds(prev => [...prev, id]);
+
+    // Wait for animation to finish before removing from state
+    setTimeout(() => {
+        setTasks(currentTasks => currentTasks.filter(task => task.id !== id));
+    }, 300); // Should match animation duration
 
     try {
       const response = await fetch('/api/deleteTask', {
@@ -83,13 +92,17 @@ const App: React.FC = () => {
         body: JSON.stringify({ id }),
       });
       if (!response.ok) {
-        setTasks(originalTasks); // Revert on failure
+        // Revert on failure
         setError('Failed to delete task.');
+        setExitingTaskIds(prev => prev.filter(exitingId => exitingId !== id));
+        setTasks(originalTasks);
       }
     } catch (e) {
-      setTasks(originalTasks); // Revert on failure
-      setError('Failed to delete task.');
-      console.error(e);
+        // Revert on failure
+        setError('Failed to delete task.');
+        setExitingTaskIds(prev => prev.filter(exitingId => exitingId !== id));
+        setTasks(originalTasks);
+        console.error(e);
     }
   };
   
@@ -144,13 +157,16 @@ const App: React.FC = () => {
     }
 
     if (tasks.length === 0 && !error) {
-      return <p className="text-center text-gray-400">No tasks yet. Add one above!</p>;
+      return <p className="text-center text-gray-400 animate-fade-in">No tasks yet. Add one above!</p>;
     }
 
     return (
       <ul className="space-y-3">
         {tasks.map((task) => (
-          <li key={task.id} className="bg-gray-800/50 p-4 rounded-lg shadow-md flex items-center justify-between gap-4">
+          <li 
+            key={task.id} 
+            className={`bg-gray-800/50 p-4 rounded-lg shadow-md flex items-center justify-between gap-4 transition-all duration-300 ${exitingTaskIds.includes(task.id) ? 'animate-fade-out' : 'animate-fade-in-down'}`}
+          >
             {editingTaskId === task.id ? (
               <form onSubmit={handleUpdateTask} className="flex-grow flex items-center gap-2">
                 <input
@@ -181,7 +197,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans flex items-center justify-center p-4 bg-gradient-to-br from-gray-900 to-indigo-900/50">
       <div className="w-full max-w-lg mx-auto">
-        <div className="bg-gray-800/30 backdrop-blur-md rounded-xl shadow-2xl p-6 md:p-8 border border-gray-700/50">
+        <div className="bg-gray-800/30 backdrop-blur-md rounded-xl shadow-2xl p-6 md:p-8 border border-gray-700/50 animate-fade-in">
           <header className="mb-6 text-center">
             <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500">
               Vercel To-Do List
@@ -189,7 +205,7 @@ const App: React.FC = () => {
             <p className="text-gray-400 mt-2">Powered by Vercel Postgres & Functions</p>
           </header>
           
-          {error && <p className="text-center text-red-400 bg-red-900/50 p-3 rounded-md mb-4">{error}</p>}
+          {error && <p className="text-center text-red-400 bg-red-900/50 p-3 rounded-md mb-4 animate-fade-in-down">{error}</p>}
 
           <form onSubmit={handleAddTask} className="mb-6">
             <div className="flex items-center gap-2 bg-gray-900/50 rounded-lg p-2 border border-gray-700 focus-within:ring-2 focus-within:ring-indigo-500 transition-shadow">
