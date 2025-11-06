@@ -1,0 +1,5 @@
+{
+  "name": "Vercel To-Do List",
+  "description": "A To-Do list web application built with a React frontend (Vite), a Vercel Functions backend, and Vercel Postgres for the database.",
+  "requestFramePermissions": []
+}
